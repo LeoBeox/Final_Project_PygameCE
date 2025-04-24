@@ -6,10 +6,13 @@ import random
 import pygame
 from pygame.locals import *
 
+#Start Pygame
 pygame.init()
 
-pygame.display.set_caption("Platformer")
+#Window Title
+pygame.display.set_caption("Fox Trot")
 
+#Main Macros
 BG_COLOR = (255, 255, 255)
 WIDTH, HEIGHT = 1000, 800
 FPS = 60
@@ -45,16 +48,23 @@ def load_sprite_sheets(dir1, dir2, width, height, direction=False):
     
     return all_sprites
 
-def get_block(size):
+def get_block(size, startX):
     path = join("assets", "Terrain", "Terrain.png")
     image = pygame.image.load(path).convert_alpha()
     surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
-    rect = pygame.Rect(0, 0, size, size)
+    rect = pygame.Rect(startX, 0, size, size)
     surface.blit(image, (0, 0), area=rect)
      # return pygame.transform.scale2x(surface)
     return surface
 
-
+class Health():
+    def __init__(self, maxHealth):
+        self.maxHealth = maxHealth
+        self.current_health = maxHealth
+        
+    
+    
+    pass
 
 class Player(pygame.sprite.Sprite):
     COLOR = (255, 0, 0)
@@ -77,6 +87,7 @@ class Player(pygame.sprite.Sprite):
         self.hit = False
         self.hit_count = 0 
         self.can_move = True
+        self.health = 3
 
 
     def move(self, dx, dy):
@@ -87,13 +98,18 @@ class Player(pygame.sprite.Sprite):
         self.hit = True
         self.hit_count = 0
         self.can_move = True
+        self.health -= 1
+        self.hearts()
 
         if self.direction == "left":
-            self.x_vel = 10
-        else:
-            self.x_vel = -10
-        
-        self.y_vel = -5
+            self.x_vel = 50
+        elif self.direction == "right":
+            self.x_vel = -50
+
+    def hearts(self):
+        if self.health == 0:
+            print("Died")
+
 
     def moveLeft(self, vel):
         self.x_vel = -vel
@@ -171,9 +187,9 @@ class Player(pygame.sprite.Sprite):
         self.rect.topleft = (self.rect.x, self.rect.y)  # Set the position of the rect based on x and y coordinates
         self.mask = pygame.mask.from_surface(self.sprite)  # Update the mask
 
-    def draw(self, win, offset_x):
+    def draw(self, win, offset_x, offset_y):
         try:
-            win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y))
+            win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
         except Exception as e:
             print("Error drawing sprite:", e)
 
@@ -187,12 +203,12 @@ class Object(pygame.sprite.Sprite):
         self.height = height
         self.name = name
 
-    def draw(self, win, offset_x):
+    def draw(self, win, offset_x, offset_y):
         # Debug: draw a green rectangle to see where the player should be
         # pygame.draw.rect(win, (0, 255, 0), self.rect)  # Green fill for visibility
 
         try:
-            win.blit(self.image, (self.rect.x - offset_x, self.rect.y))
+            win.blit(self.image, (self.rect.x - offset_x, self.rect.y - offset_y))
         except Exception as e:
             print("Error drawing sprite:", e)
 
@@ -201,9 +217,9 @@ class Object(pygame.sprite.Sprite):
 
 class Block(Object):
     
-    def __init__(self, x, y, size):
-        super().__init__(x, y, size, size)  
-        block = get_block(size)
+    def __init__(self, x, y, size, startX):
+        super().__init__(x, y, size, size, startX)  
+        block = get_block(size, startX)
         if block:
             self.image.blit(block, (0, 0))
         else:
@@ -241,6 +257,7 @@ class Rune(Object):
         self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
         self.mask = pygame.mask.from_surface(self.image)  # Update the mask
 
+
 def get_background(name):
     image = pygame.image.load(join("assets", "Background", name))
     _, _, width, height = image.get_rect()
@@ -255,14 +272,14 @@ def get_background(name):
     return tiles, image
 
 
-def draw(window, background, bg_image, player, objects, offset_x):
+def draw(window, background, bg_image, player, objects, offset_x, offset_y):
     for tile in background:
         window.blit(bg_image, tile)
    
     for obj in objects:
-        obj.draw(window, offset_x)
+        obj.draw(window, offset_x, offset_y)
 
-    player.draw(window, offset_x)
+    player.draw(window, offset_x, offset_y)
     pygame.display.update()
 
 def handle_vertical_collision(player, objects, dy):
@@ -333,18 +350,23 @@ def main(window):
     player = Player(100, 100, 50, 50)
 
     rune = Rune(100, HEIGHT - block_size - 64, 32, 64)
+    rune2 = Rune(500, HEIGHT - block_size - 300, 32, 64)
 
     
-    floor = [Block(i * block_size, HEIGHT - block_size, block_size) for i in range(-WIDTH // block_size, WIDTH * 2 // block_size)]
-    blocks = [Block(0, HEIGHT - block_size, block_size)]
-    objects = [*floor , Block(0, HEIGHT - block_size * 2, block_size), 
-               Block(block_size * 3, HEIGHT - block_size * 4, block_size),
-               Block(block_size * 6, HEIGHT - block_size * 6, block_size),
-               Block(block_size * 6, HEIGHT - block_size * 4, block_size),
-               rune,]
+    floor = [Block(i * block_size, HEIGHT - block_size, block_size, 0) for i in range(-WIDTH // block_size, WIDTH * 2 // block_size)]
+    blocks = [Block(0, HEIGHT - block_size, block_size, 0)]
+    objects = [*floor , Block(0, HEIGHT - block_size * 2, block_size, 0), 
+               Block(block_size * 3, HEIGHT - block_size * 4, block_size, 0),
+               Block(block_size * 6, HEIGHT - block_size * 6, block_size, 96),
+               Block(block_size * 6, HEIGHT - block_size * 4, block_size, 192),
+               rune,
+               rune2]
     
-    offset_x = 0
-    scroll_area_width = 200
+    offset_x, offset_y = 0, 0
+    scroll_area_width, scroll_area_height = 200, 300
+    CAMERA_BOTTOM_LIMIT = -block_size + 96
+    CAMERA_RIGHT_LIMIT = 1200
+    CAMERA_LEFT_LIMIT = -1200
 
     run = True
     while run:
@@ -360,19 +382,31 @@ def main(window):
                     player.jump()
         player.loop(FPS)
         rune.loop()
+        rune2.loop()
         handle_movement(player, objects)
 
-        draw(window, background, bg_image, player, objects, offset_x)
+        draw(window, background, bg_image, player, objects, offset_x, offset_y)
 
-        if (player.rect.right - offset_x >= WIDTH - scroll_area_width and player.x_vel > 0) or (
-            player.rect.right - offset_x <= scroll_area_width and player.x_vel < 0):
-            offset_x += player.x_vel
+        #Offsets X-Camera to the player so that it is centered
+        target_offset_x = player.rect.x - WIDTH // 2 + player.rect.width // 2
+
+        # Changes X-Camera so it does not go beyond right limit
+        offset_x = min(target_offset_x, CAMERA_RIGHT_LIMIT)
+
+        # Offsets Y-Camera to the player so that it is centered
+        target_offset_y = player.rect.y - HEIGHT // 2 + player.rect.height // 2  
+
+        # Changes Y-Camera so it does not go beyond ground limit
+        offset_y = min(target_offset_y, CAMERA_BOTTOM_LIMIT)
+
+            
 
     pygame.quit()
     quit()       
    
     pass
 
+#Begins Main Function
 if __name__ == "__main__":
     main(window)
 
