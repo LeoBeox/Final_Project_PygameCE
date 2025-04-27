@@ -287,16 +287,18 @@ def get_background(name):
 def draw(canvas, window, background, bg_image, player, objects, tilemap, offset_x, offset_y):
     canvas.fill((0, 0, 0, 0))
 
+    for tile in background:
+        canvas.blit(bg_image, tile)
+
     tilemap.draw_map(canvas, offset_x, offset_y)
 
-    for tile in background:
-        window.blit(bg_image, tile)
+
 
     for obj in objects:
         if obj not in tilemap.get_tiles():
-            obj.draw(window, offset_x, offset_y)
+            obj.draw(canvas, offset_x, offset_y)
 
-    player.draw(window, offset_x, offset_y)
+    player.draw(canvas, offset_x, offset_y)
 
     window.blit(canvas, (0, 0))
 
@@ -304,7 +306,7 @@ def draw(canvas, window, background, bg_image, player, objects, tilemap, offset_
 
     pygame.display.update()
 
-def handle_vertical_collision(player, objects, dy):
+def handle_vertical_collision(player, objects, tilemap, dy):
     collided_objects = []
     player.rect.y += dy
     player.update()
@@ -321,10 +323,21 @@ def handle_vertical_collision(player, objects, dy):
             
             collided_objects.append(obj)
 
+    for tile in tilemap.tiles:
+        if pygame.sprite.collide_mask(player, tile):
+            if dy > 0:  # Player is falling
+                player.rect.bottom = tile.rect.top
+                player.landed()  # Reset jump count and set player on ground
+            elif dy < 0:  # Player is jumping upwards
+                player.rect.top = tile.rect.bottom
+                player.hit_head()  # Handle hitting the ceiling
+            
+            collided_objects.append(tile)
+
     return collided_objects
 
 
-def collide(player, objects, dx):
+def collide(player, objects, tilemap, dx):
     player.move(dx, 0)
     player.update()
     collided_object = None
@@ -334,19 +347,26 @@ def collide(player, objects, dx):
                 collided_object = obj
                 break
 
+    for tile in tilemap.tiles:
+        if pygame.sprite.collide_mask(player, tile):
+            if player.rect.colliderect(tile.rect):
+                collided_object = tile
+                break
+
+
     player.move(-dx, 0)
     player.update()
     return collided_object
 
 
-def handle_movement(player, objects):
+def handle_movement(player, objects, tilemap):
     keys = pygame.key.get_pressed()
 
     player.x_vel = 0
 
     if player.can_move:
-        collide_left = collide(player, objects, -PLAYER_VEL * 2)
-        collide_right = collide(player, objects, PLAYER_VEL * 2)
+        collide_left = collide(player, objects, tilemap, -PLAYER_VEL * 2)
+        collide_right = collide(player, objects, tilemap, PLAYER_VEL * 2)
 
         if keys[pygame.K_LEFT] and not collide_left:
             player.moveLeft(PLAYER_VEL)
@@ -354,13 +374,15 @@ def handle_movement(player, objects):
             player.moveRight(PLAYER_VEL) 
     else:
             
-        collide_left = collide(player, objects, PLAYER_VEL * 2)
-        collide_right = collide(player, objects, PLAYER_VEL * 2)
+        collide_left = collide(player, objects, tilemap, PLAYER_VEL * 2)
+        collide_right = collide(player, objects, tilemap, PLAYER_VEL * 2)
         
 
-    vertical_collide = handle_vertical_collision(player, objects, player.y_vel)
+    vertical_collide = handle_vertical_collision(player, objects, tilemap, player.y_vel)
     to_check = [collide_left, collide_right, *vertical_collide]
     for obj in to_check:
+        if type(obj) == Tile:
+            break
         if obj and obj.name == "rune":
             player.makeHit()
 
@@ -394,11 +416,7 @@ def main(window):
 
     offset_x, offset_y = 0, 0
     tilemap = TileMap('GoblinBroMap1.csv')
-    print(tilemap)
-    # fullSurface = tilemap.draw_map(canvas, offset_x, offset_y)
-    
-    
-    
+
     CAMERA_BOTTOM_LIMIT = 1200
     CAMERA_RIGHT_LIMIT = 4800
     CAMERA_LEFT_LIMIT = -1200
@@ -418,7 +436,7 @@ def main(window):
         player.loop(FPS)
         rune.loop()
         rune2.loop()
-        handle_movement(player, objects)
+        handle_movement(player, objects, tilemap)
 
         
         draw(canvas, window, background, bg_image, player, objects, tilemap, offset_x, offset_y)

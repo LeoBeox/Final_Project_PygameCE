@@ -64,7 +64,9 @@ class TileMap():
         for row in csv_map:
             x = 0
             for tile in row:
-                if tile == "0":
+                if tile == "-1":
+                    pass
+                elif tile == "0":
                     tiles.append(Tile(x * block_size, y * block_size, block_size, 0, 0))
                 elif tile == "1":
                     tiles.append(Tile(x * block_size, y * block_size, block_size, 96, 0))
@@ -84,7 +86,6 @@ class TileMap():
         # Stores the size of the whole map
         self.tile_map_w = len(csv_map[0]) * block_size
         self.tile_map_h = len(csv_map) * block_size
-        print(tiles)
         return tiles
 
 
