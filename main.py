@@ -5,6 +5,7 @@ import math
 import random
 import pygame
 from pygame.locals import *
+from tiles import *
 
 #Start Pygame
 pygame.init()
@@ -15,9 +16,11 @@ pygame.display.set_caption("Fox Trot")
 #Main Macros
 BG_COLOR = (255, 255, 255)
 WIDTH, HEIGHT = 1000, 800
+CANVAS_WIDTH, CANVAS_HEIGHT = 4800, 1200
 FPS = 60
 PLAYER_VEL = 5
 
+# Sets window display size
 window = pygame.display.set_mode((WIDTH, HEIGHT))
 
 def flip(sprites):
@@ -48,13 +51,12 @@ def load_sprite_sheets(dir1, dir2, width, height, direction=False):
     
     return all_sprites
 
-def get_block(size, startX):
+def get_block(size, startX, startY):
     path = join("assets", "Terrain", "Terrain.png")
     image = pygame.image.load(path).convert_alpha()
     surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
-    rect = pygame.Rect(startX, 0, size, size)
+    rect = pygame.Rect(startX, startY, size, size)
     surface.blit(image, (0, 0), area=rect)
-     # return pygame.transform.scale2x(surface)
     return surface
 
 class Health():
@@ -71,6 +73,7 @@ class Player(pygame.sprite.Sprite):
     GRAVITY = 1
     SPRITES = load_sprite_sheets("MainCharacter", "GoblinBro", 32, 32, True)
     ANIMATION_DELAY = 5
+    
     
     def __init__(self, x, y, width, height, name=None):
         super().__init__()
@@ -97,35 +100,43 @@ class Player(pygame.sprite.Sprite):
     def makeHit(self):
         self.hit = True
         self.hit_count = 0
-        self.can_move = True
         self.health -= 1
         self.hearts()
 
         if self.direction == "left":
-            self.x_vel = 50
+            self.x_vel = 15
         elif self.direction == "right":
-            self.x_vel = -50
+            self.x_vel = -15
+
+        self.can_move = False
 
     def hearts(self):
         if self.health == 0:
             print("Died")
 
-
     def moveLeft(self, vel):
+        if not self.can_move:
+            return
+        
         self.x_vel = -vel
         if self.direction != "left":
             self.direction = "left"
             self.animation_count = 0
 
     def moveRight(self, vel):
+        if not self.can_move:
+            return
         self.x_vel = vel
         if self.direction != "right":
             self.direction = "right"
             self.animation_count = 0
 
-    def jump(self):
+    def jump(self, jump_vel):
+        if not self.can_move:
+            return
+
         if self.jump_count < 2:
-            self.y_vel = -self.GRAVITY * 8
+            self.y_vel = jump_vel
             self.animation_count = 0
             self.jump_count += 1
             self.on_ground = False  # No longer on the ground after jumping
@@ -134,7 +145,7 @@ class Player(pygame.sprite.Sprite):
         # Apply movement
         self.move(self.x_vel, self.y_vel)
 
-        # Gravity only if not grounded (i.e., not standing on something)
+        # Gravity only if not on ground
         self.y_vel += min(1, (self.fall_count / FPS) * self.GRAVITY)
         self.fall_count += 1
 
@@ -144,6 +155,7 @@ class Player(pygame.sprite.Sprite):
                 self.hit = False
                 self.can_move = True
 
+        # print(self.y_vel) # Debug
         self.update_sprite()
 
 
@@ -217,13 +229,13 @@ class Object(pygame.sprite.Sprite):
 
 class Block(Object):
     
-    def __init__(self, x, y, size, startX):
-        super().__init__(x, y, size, size, startX)  
-        block = get_block(size, startX)
+    def __init__(self, x, y, size, startX, startY):
+        super().__init__(x, y, size, size)  
+        block = get_block(size, startX, startY)
         if block:
             self.image.blit(block, (0, 0))
         else:
-            self.image.fill((0, 255, 0))  # bright green if loading fails
+            self.image.fill((0, 255, 0))  # bright green just in case loading fails
         self.mask = pygame.mask.from_surface(self.image)  
 
 class Rune(Object):
@@ -272,10 +284,14 @@ def get_background(name):
     return tiles, image
 
 
-def draw(window, background, bg_image, player, objects, offset_x, offset_y):
+def draw(canvas, window, background, bg_image, player, objects, tilemap, offset_x, offset_y):
     for tile in background:
         window.blit(bg_image, tile)
-   
+
+    fullSurface = tilemap.draw_map(canvas, offset_x, offset_y) 
+
+    canvas.blit(fullSurface, (0, 0))
+
     for obj in objects:
         obj.draw(window, offset_x, offset_y)
 
@@ -318,20 +334,22 @@ def collide(player, objects, dx):
 
 
 def handle_movement(player, objects):
-    if not player.can_move:
-        return
-    
     keys = pygame.key.get_pressed()
 
     player.x_vel = 0
 
-    collide_left = collide(player, objects, -PLAYER_VEL * 2)
-    collide_right = collide(player, objects, PLAYER_VEL * 2)
+    if player.can_move:
+        collide_left = collide(player, objects, -PLAYER_VEL * 2)
+        collide_right = collide(player, objects, PLAYER_VEL * 2)
 
-    if keys[pygame.K_LEFT] and not collide_left:
-        player.moveLeft(PLAYER_VEL)
-    if keys[pygame.K_RIGHT] and not collide_right:
-        player.moveRight(PLAYER_VEL) 
+        if keys[pygame.K_LEFT] and not collide_left:
+            player.moveLeft(PLAYER_VEL)
+        if keys[pygame.K_RIGHT] and not collide_right:
+            player.moveRight(PLAYER_VEL) 
+    else:
+            
+        collide_left = collide(player, objects, PLAYER_VEL * 2)
+        collide_right = collide(player, objects, PLAYER_VEL * 2)
         
 
     vertical_collide = handle_vertical_collision(player, objects, player.y_vel)
@@ -341,6 +359,7 @@ def handle_movement(player, objects):
             player.makeHit()
 
 
+# Main Function that handles everything that happens, including window, time, sprites, and logic.
 def main(window):
     clock = pygame.time.Clock()
     background, bg_image = get_background("purblueBG.png")
@@ -348,22 +367,32 @@ def main(window):
     block_size = 96
 
     player = Player(100, 100, 50, 50)
+    JUMP_VEL = -6
 
     rune = Rune(100, HEIGHT - block_size - 64, 32, 64)
     rune2 = Rune(500, HEIGHT - block_size - 300, 32, 64)
 
-    
-    floor = [Block(i * block_size, HEIGHT - block_size, block_size, 0) for i in range(-WIDTH // block_size, WIDTH * 2 // block_size)]
-    blocks = [Block(0, HEIGHT - block_size, block_size, 0)]
-    objects = [*floor , Block(0, HEIGHT - block_size * 2, block_size, 0), 
-               Block(block_size * 3, HEIGHT - block_size * 4, block_size, 0),
-               Block(block_size * 6, HEIGHT - block_size * 6, block_size, 96),
-               Block(block_size * 6, HEIGHT - block_size * 4, block_size, 192),
+
+
+    floor = [Block(i * block_size, HEIGHT - block_size, block_size, 0, 0) for i in range(-WIDTH // block_size, WIDTH * 2 // block_size)]
+    blocks = [Block(0, HEIGHT - block_size, block_size, 0, 0)]
+    objects = [*floor , Block(0, HEIGHT - block_size * 2, block_size, 0, 0), 
+               Block(block_size * 3, HEIGHT - block_size * 4, block_size, 0, 0),
+               Block(block_size * 6, HEIGHT - block_size * 6, block_size, 96, 96),
+               Block(block_size * 6, HEIGHT - block_size * 4, block_size, 192, 96),
                rune,
-               rune2]
+               rune2,]
     
+    
+    canvas = pygame.surface.Surface((CANVAS_WIDTH, CANVAS_HEIGHT))
+
     offset_x, offset_y = 0, 0
-    scroll_area_width, scroll_area_height = 200, 300
+    tilemap = TileMap('GoblinBroMap1.csv')
+    print(tilemap)
+    # fullSurface = tilemap.draw_map(canvas, offset_x, offset_y)
+    
+    
+    
     CAMERA_BOTTOM_LIMIT = -block_size + 96
     CAMERA_RIGHT_LIMIT = 1200
     CAMERA_LEFT_LIMIT = -1200
@@ -379,22 +408,27 @@ def main(window):
             
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP and player.jump_count < 2:
-                    player.jump()
+                    player.jump(JUMP_VEL)
         player.loop(FPS)
         rune.loop()
         rune2.loop()
         handle_movement(player, objects)
 
-        draw(window, background, bg_image, player, objects, offset_x, offset_y)
+        
+        draw(canvas, window, background, bg_image, player, objects, tilemap, offset_x, offset_y)
 
         #Offsets X-Camera to the player so that it is centered
         target_offset_x = player.rect.x - WIDTH // 2 + player.rect.width // 2
+
+        offset_x += (target_offset_x - offset_x) * 0.15 # Smoothness 
 
         # Changes X-Camera so it does not go beyond right limit
         offset_x = min(target_offset_x, CAMERA_RIGHT_LIMIT)
 
         # Offsets Y-Camera to the player so that it is centered
         target_offset_y = player.rect.y - HEIGHT // 2 + player.rect.height // 2  
+
+        offset_y += (target_offset_y - offset_y) * 0.15 # Smoothness 
 
         # Changes Y-Camera so it does not go beyond ground limit
         offset_y = min(target_offset_y, CAMERA_BOTTOM_LIMIT)
