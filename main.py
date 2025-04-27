@@ -283,19 +283,25 @@ def get_background(name):
 
     return tiles, image
 
-
+# Draws Everything onto the screen
 def draw(canvas, window, background, bg_image, player, objects, tilemap, offset_x, offset_y):
+    canvas.fill((0, 0, 0, 0))
+
+    tilemap.draw_map(canvas, offset_x, offset_y)
+
     for tile in background:
         window.blit(bg_image, tile)
 
-    fullSurface = tilemap.draw_map(canvas, offset_x, offset_y) 
-
-    canvas.blit(fullSurface, (0, 0))
-
     for obj in objects:
-        obj.draw(window, offset_x, offset_y)
+        if obj not in tilemap.get_tiles():
+            obj.draw(window, offset_x, offset_y)
 
     player.draw(window, offset_x, offset_y)
+
+    window.blit(canvas, (0, 0))
+
+    
+
     pygame.display.update()
 
 def handle_vertical_collision(player, objects, dy):
@@ -393,8 +399,8 @@ def main(window):
     
     
     
-    CAMERA_BOTTOM_LIMIT = -block_size + 96
-    CAMERA_RIGHT_LIMIT = 1200
+    CAMERA_BOTTOM_LIMIT = 1200
+    CAMERA_RIGHT_LIMIT = 4800
     CAMERA_LEFT_LIMIT = -1200
 
     run = True

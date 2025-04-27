@@ -1,23 +1,30 @@
 import pygame
 import os
 import csv
-from main import Block, load_sprite_sheets
 
 
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, image, x, y, spritesheet):
-        pygame.sprite.Sprite.__init__(self)
+    tile_image = None
+    
+    def __init__(self, x, y, size, startX, startY):
+        super().__init__()
+        self.rect = pygame.Rect(x, y, size, size)
+        self.image = pygame.Surface((size, size), pygame.SRCALPHA)
+
+        if Tile.tile_image is None:
+            path = os.path.join("assets", "Terrain", "Terrain.png")
+            Tile.tile_image = pygame.image.load(path).convert_alpha()
         
-        self.image = load_sprite_sheets("Terrain", "terrain.png", 96 ,96 , False)
+        tile_surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
+        rect = pygame.Rect(startX, startY, size, size)
+        tile_surface.blit(Tile.tile_image, (0, 0), area=rect)
+
+        self.image.blit(tile_surface, (0, 0))
         self.mask = pygame.mask.from_surface(self.image)
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
+
 
     def draw(self, surface, offset_x, offset_y):
-        print(surface)
-        full_surface = surface.blit(self.image, (self.rect.x - offset_x, self.rect.y - offset_y))
-        return full_surface
+        surface.blit(self.image, (self.rect.x - offset_x, self.rect.y - offset_y))
 
 
 class TileMap():
@@ -26,21 +33,20 @@ class TileMap():
         self.start_y = 0
         self.start_x = 0
         self.tiles = self.load_tiles(file_name)
-        self.surface = pygame.Surface((self.tile_map_w, self.tile_map_h))
-        self.load_map()
     
     def draw_map(self, surface, offset_x, offset_y):
-        surface.blit(self.surface, (self.tile_map_w - offset_x, self.tile_map_h - offset_y))
+        # Draws only the visible tiles by checking offset to see if its in current view.
+        for tile in self.tiles:
+            if (tile.rect.x - offset_x > -self.tile_size and
+                tile.rect.x - offset_x < surface.get_width() and
+                tile.rect.y - offset_y > -self.tile_size and
+                tile.rect.y - offset_y < surface.get_height()):
+
+                tile.draw(surface, offset_x, offset_y)
+
         return surface
 
-    def load_map(self):
-        for tile in self.tiles:
-            tile.draw(self.surface, 0, 0)
-
-        return self.surface
-
-
-    def read_cvs(self, file_name):
+    def read_csv(self, file_name):
         tileMap_1 = []
         with open(os.path.join(file_name)) as data:
             data = csv.reader(data, delimiter=",")
@@ -50,33 +56,34 @@ class TileMap():
     
     def load_tiles(self, file_name):
         tiles = []
-        map = self.read_cvs(file_name)
-        x = 0
+        csv_map = self.read_csv(file_name)
+        block_size = self.tile_size
+
         y = 0
-        block_size = 96
-        for row in map:
+
+        for row in csv_map:
             x = 0
             for tile in row:
                 if tile == "0":
-                    tiles.append(Block(x, y, block_size, 0, 0))
+                    tiles.append(Tile(x * block_size, y * block_size, block_size, 0, 0))
                 elif tile == "1":
-                    tiles.append(Block(x, y, block_size, 96, 0))
+                    tiles.append(Tile(x * block_size, y * block_size, block_size, 96, 0))
                 elif tile == "2":
-                    tiles.append(Block(x, y, block_size, 192, 0))
+                    tiles.append(Tile(x * block_size, y * block_size, block_size, 192, 0))
                 elif tile == "5":
-                    tiles.append(Block(x, y, block_size, 0, 96))
+                    tiles.append(Tile(x * block_size, y * block_size, block_size, 0, 96))
                 elif tile == "6":
-                    tiles.append(Block(x, y, block_size, 96, 96))
+                    tiles.append(Tile(x * block_size, y * block_size, block_size, 96, 96))
                 elif tile == "7":
-                    tiles.append(Block(x, y, block_size, 192, 96))
+                    tiles.append(Tile(x * block_size, y * block_size, block_size, 192, 96))
                     # Checks next column in csv map
                 x += 1
             # Checks next row in csv map
             y += 1
         
         # Stores the size of the whole map
-        self.tile_map_w = len(map[0]) * block_size
-        self.tile_map_h = len(map) * block_size
+        self.tile_map_w = len(csv_map[0]) * block_size
+        self.tile_map_h = len(csv_map) * block_size
         print(tiles)
         return tiles
 
