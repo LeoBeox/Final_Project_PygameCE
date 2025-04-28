@@ -23,6 +23,7 @@ PLAYER_VEL = 5
 # Sets window display size
 window = pygame.display.set_mode((WIDTH, HEIGHT))
 
+# Gets the flipped version of sprites that have a direction (ie. left or right)
 def flip(sprites):
     return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
 
@@ -86,11 +87,11 @@ class Player(pygame.sprite.Sprite):
         self.fall_count = 0
         self.jump_count = 0
         self.gravity_enabled = True
-        self.current_sprite_sheet = None
         self.hit = False
         self.hit_count = 0 
         self.can_move = True
-        self.health = 3
+        self.is_alive = True
+        self.health = 4
 
 
     def move(self, dx, dy):
@@ -101,7 +102,10 @@ class Player(pygame.sprite.Sprite):
         self.hit = True
         self.hit_count = 0
         self.health -= 1
-        self.hearts()
+        print(self.health)
+        if self.health == 0:
+            self.is_alive = False
+            
 
         if self.direction == "left":
             self.x_vel = 15
@@ -109,10 +113,6 @@ class Player(pygame.sprite.Sprite):
             self.x_vel = -15
 
         self.can_move = False
-
-    def hearts(self):
-        if self.health == 0:
-            print("Died")
 
     def moveLeft(self, vel):
         if not self.can_move:
@@ -168,9 +168,13 @@ class Player(pygame.sprite.Sprite):
         self.y_vel *= -1
 
     def update_sprite(self):
+
         sprite_sheet = "idle"
-        
-        if self.hit:
+
+        if self.is_alive == False:
+            sprite_sheet = "dead" 
+            self.can_move = False
+        elif self.hit:
             sprite_sheet = "hit"
         elif self.y_vel < 0:
             sprite_sheet = "jump"
@@ -394,17 +398,16 @@ def main(window):
 
     block_size = 96
 
-    player = Player(100, 100, 50, 50)
+    player = Player(45, 1650, 50, 50)
     JUMP_VEL = -6
 
-    rune = Rune(100, HEIGHT - block_size - 64, 32, 64)
+    rune = Rune(300, 1700, 32, 64)
     rune2 = Rune(500, HEIGHT - block_size - 300, 32, 64)
 
 
 
-    floor = [Block(i * block_size, HEIGHT - block_size, block_size, 0, 0) for i in range(-WIDTH // block_size, WIDTH * 2 // block_size)]
-    blocks = [Block(0, HEIGHT - block_size, block_size, 0, 0)]
-    objects = [*floor , Block(0, HEIGHT - block_size * 2, block_size, 0, 0), 
+    
+    objects = [Block(0, HEIGHT - block_size * 2, block_size, 0, 0), 
                Block(block_size * 3, HEIGHT - block_size * 4, block_size, 0, 0),
                Block(block_size * 6, HEIGHT - block_size * 6, block_size, 96, 96),
                Block(block_size * 6, HEIGHT - block_size * 4, block_size, 192, 96),
@@ -417,9 +420,9 @@ def main(window):
     offset_x, offset_y = 0, 0
     tilemap = TileMap('GoblinBroMap1.csv')
 
-    CAMERA_BOTTOM_LIMIT = 1200
-    CAMERA_RIGHT_LIMIT = 4800
-    CAMERA_LEFT_LIMIT = -1200
+    CAMERA_BOTTOM_LIMIT = 1100
+    CAMERA_RIGHT_LIMIT = 3800
+    CAMERA_LEFT_LIMIT = 0
 
     run = True
     while run:
@@ -447,7 +450,7 @@ def main(window):
         offset_x += (target_offset_x - offset_x) * 0.15 # Smoothness 
 
         # Changes X-Camera so it does not go beyond right limit
-        offset_x = min(target_offset_x, CAMERA_RIGHT_LIMIT)
+        offset_x = max(CAMERA_LEFT_LIMIT, min(target_offset_x, CAMERA_RIGHT_LIMIT))
 
         # Offsets Y-Camera to the player so that it is centered
         target_offset_y = player.rect.y - HEIGHT // 2 + player.rect.height // 2  
