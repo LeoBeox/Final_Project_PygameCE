@@ -60,14 +60,42 @@ def get_block(size, startX, startY):
     surface.blit(image, (0, 0), area=rect)
     return surface
 
-class Health():
-    def __init__(self, maxHealth):
-        self.maxHealth = maxHealth
+class Health:
+    def __init__(self, x, y, maxHealth, entity=None):
+        self.rect = pygame.Rect(x, y, 32, 32)
+        self.max_health = maxHealth
         self.current_health = maxHealth
+        self.sprites = load_sprite_sheets("Utility", "Health", 32, 32, False)
+        self.sprite_name = "life"
+        self.frame = self.current_health
+        self.entity = entity
+        self.fixed_pos = True
         
+    def take_damage(self, damage):
+        self.current_health = max(0, self.current_health - damage)
+        return self.current_health <= 0
     
-    
-    pass
+    def update(self):
+        if self.entity and not self.fixed_pos:
+            self.x = self.owner.rect.x + (self.owner.rect.width // 2) - 16
+            self.y = self.owner.rect.y + 40
+
+
+
+    def draw(self, canvas, offset_x=0, offset_y=0):
+        
+        frame_index = self.max_health - self.current_health
+
+        if frame_index >= len(self.sprites[self.sprite_name]):
+            frame_index = len(self.sprites[self.sprite_name]) - 1
+
+        sprite = self.sprites[self.sprite_name][frame_index]
+        
+        if self.fixed_pos:
+            canvas.blit(sprite, (self.rect.x, self.rect.y))
+        else:
+            canvas.blit(sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
+        
 
 class Player(pygame.sprite.Sprite):
     COLOR = (255, 0, 0)
@@ -91,7 +119,9 @@ class Player(pygame.sprite.Sprite):
         self.hit_count = 0 
         self.can_move = True
         self.is_alive = True
-        self.health = 4
+        self.max_health = 3
+        self.health_display = Health(950, 20, self.max_health, self)
+        self.health_display.fixed_pos = True
 
 
     def move(self, dx, dy):
@@ -101,9 +131,10 @@ class Player(pygame.sprite.Sprite):
     def makeHit(self):
         self.hit = True
         self.hit_count = 0
-        self.health -= 1
-        print(self.health)
-        if self.health == 0:
+        
+        is_dead = self.health_display.take_damage(1)
+
+        if is_dead:
             self.is_alive = False
             
 
@@ -155,6 +186,8 @@ class Player(pygame.sprite.Sprite):
                 self.hit = False
                 self.can_move = True
 
+        self.health_display.update()
+
         # print(self.y_vel) # Debug
         self.update_sprite()
 
@@ -203,9 +236,10 @@ class Player(pygame.sprite.Sprite):
         self.rect.topleft = (self.rect.x, self.rect.y)  # Set the position of the rect based on x and y coordinates
         self.mask = pygame.mask.from_surface(self.sprite)  # Update the mask
 
-    def draw(self, win, offset_x, offset_y):
+    def draw(self, canvas, offset_x, offset_y):
         try:
-            win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
+            canvas.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
+            self.health_display.draw(canvas, offset_x, offset_y)
         except Exception as e:
             print("Error drawing sprite:", e)
 
