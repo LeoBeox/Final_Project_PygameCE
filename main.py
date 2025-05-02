@@ -96,8 +96,8 @@ class Health:
         else:
             canvas.blit(sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
         
-
 class Player(pygame.sprite.Sprite):
+
     COLOR = (255, 0, 0)
     GRAVITY = 1
     SPRITES = load_sprite_sheets("MainCharacter", "GoblinBro", 32, 32, True)
@@ -120,7 +120,7 @@ class Player(pygame.sprite.Sprite):
         self.can_move = True
         self.is_alive = True
         self.max_health = 3
-        self.health_display = Health(950, 20, self.max_health, self)
+        self.health_display = Health(925, 20, self.max_health, self)
         self.health_display.fixed_pos = True
 
 
@@ -142,6 +142,7 @@ class Player(pygame.sprite.Sprite):
             self.x_vel = 15
         elif self.direction == "right":
             self.x_vel = -15
+        #self.y_vel = -5
 
         self.can_move = False
 
@@ -242,6 +243,10 @@ class Player(pygame.sprite.Sprite):
             self.health_display.draw(canvas, offset_x, offset_y)
         except Exception as e:
             print("Error drawing sprite:", e)
+
+class Enemy:
+    def __init__(self):
+        pass
 
 class Object(pygame.sprite.Sprite):
 
@@ -352,23 +357,33 @@ def handle_vertical_collision(player, objects, tilemap, dy):
 
     for obj in objects:
         if pygame.sprite.collide_mask(player, obj):
-            if dy > 0:  # Player is falling
-                player.rect.bottom = obj.rect.top
-                player.landed()  # Reset jump count and set player on ground
-            elif dy < 0:  # Player is jumping upwards
-                player.rect.top = obj.rect.bottom
-                player.hit_head()  # Handle hitting the ceiling
-            
+
+            horizontal_overlap = min(player.rect.right - obj.rect.left,
+                                    obj.rect.right - player.rect.left)
+            if horizontal_overlap > 10:
+
+                if dy > 0:  # Player is falling
+                    player.rect.bottom = obj.rect.top
+                    player.landed()  # Reset jump count and set player on ground
+                elif dy < 0:  # Player is jumping upwards
+                    player.rect.top = obj.rect.bottom
+                    player.hit_head()  # Handle hitting the ceiling
+                
             collided_objects.append(obj)
 
     for tile in tilemap.tiles:
         if pygame.sprite.collide_mask(player, tile):
-            if dy > 0:  # Player is falling
-                player.rect.bottom = tile.rect.top
-                player.landed()  # Reset jump count and set player on ground
-            elif dy < 0:  # Player is jumping upwards
-                player.rect.top = tile.rect.bottom
-                player.hit_head()  # Handle hitting the ceiling
+
+            horizontal_overlap = min(player.rect.right - tile.rect.left,
+                                    tile.rect.right - player.rect.left)
+            
+            if horizontal_overlap > 10:
+                if dy > 0:  # Player is falling
+                    player.rect.bottom = tile.rect.top
+                    player.landed()  # Reset jump count and set player on ground
+                elif dy < 0:  # Player is jumping upwards
+                    player.rect.top = tile.rect.bottom
+                    player.hit_head()  # Handle hitting the ceiling
             
             collided_objects.append(tile)
 
@@ -435,18 +450,15 @@ def main(window):
     player = Player(45, 1650, 50, 50)
     JUMP_VEL = -6
 
-    rune = Rune(300, 1700, 32, 64)
+    rune = Rune(3 * block_size + 15, 17 * block_size + 20, 32, 64)
     rune2 = Rune(500, HEIGHT - block_size - 300, 32, 64)
+    rune3 = Rune(44 * block_size, 13 * block_size + 15, 32, 64)
+    rune4 = Rune(44 * block_size + 15, 8 * block_size + 30, 32, 64)
 
 
 
     
-    objects = [Block(0, HEIGHT - block_size * 2, block_size, 0, 0), 
-               Block(block_size * 3, HEIGHT - block_size * 4, block_size, 0, 0),
-               Block(block_size * 6, HEIGHT - block_size * 6, block_size, 96, 96),
-               Block(block_size * 6, HEIGHT - block_size * 4, block_size, 192, 96),
-               rune,
-               rune2,]
+    objects = [rune, rune2, rune3, rune4]
     
     
     canvas = pygame.surface.Surface((CANVAS_WIDTH, CANVAS_HEIGHT))
@@ -471,8 +483,8 @@ def main(window):
                 if event.key == pygame.K_UP and player.jump_count < 2:
                     player.jump(JUMP_VEL)
         player.loop(FPS)
-        rune.loop()
-        rune2.loop()
+        rune.loop(), rune2.loop(), rune3.loop(), rune4.loop()
+        
         handle_movement(player, objects, tilemap)
 
         
