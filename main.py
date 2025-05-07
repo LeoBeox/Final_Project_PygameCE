@@ -11,7 +11,7 @@ from tiles import *
 pygame.init()
 
 #Window Title
-pygame.display.set_caption("Fox Trot")
+pygame.display.set_caption("Goblin Trot")
 
 #Main Macros
 BG_COLOR = (255, 255, 255)
@@ -139,10 +139,11 @@ class Player(pygame.sprite.Sprite):
             
 
         if self.direction == "left":
-            self.x_vel = 15
+            self.x_vel = 30
         elif self.direction == "right":
-            self.x_vel = -15
-        #self.y_vel = -5
+            self.x_vel = -30
+
+        
 
         self.can_move = False
 
@@ -244,8 +245,24 @@ class Player(pygame.sprite.Sprite):
         except Exception as e:
             print("Error drawing sprite:", e)
 
-class Enemy:
-    def __init__(self):
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super.__init__()
+        self.rect = pygame.Rect(x, y, 0, 0)
+        self.image = pygame.Surface((0, 0), pygame.SRCALPHA)
+        self.name = None
+        self.sprite = load_sprite_sheets("Enemies", "Evil_Wizard", 32, 32, True)
+        self.direction = "left"
+        self.animation_count = 0
+        self.gravity_enabled = True
+        self.hit = False
+        self.hit_count = 0
+        self.can_move = True
+        self.is_alive = True
+        self.max_health = 3
+        self.health_display = Health(925, 20, self.max_health, self)
+        self.health_display.fixed_pos = False
+       
         pass
 
 class Object(pygame.sprite.Sprite):
@@ -452,13 +469,19 @@ def main(window):
 
     rune = Rune(3 * block_size + 15, 17 * block_size + 20, 32, 64)
     rune2 = Rune(500, HEIGHT - block_size - 300, 32, 64)
-    rune3 = Rune(44 * block_size, 13 * block_size + 15, 32, 64)
-    rune4 = Rune(44 * block_size + 15, 8 * block_size + 30, 32, 64)
+    rune3 = Rune(46 * block_size + 15, 10 * block_size + 30, 32, 64)
+    rune4 = Rune(45 * block_size + 15, 10 * block_size + 30, 32, 64)
+    rune5 = Rune(24 * block_size, 8 * block_size, 32, 64)
+    rune6 = Rune(25 * block_size, 15 * block_size, 32, 64)
+    rune7 = Rune(30 * block_size, 5 * block_size, 32, 64)
+    rune8 = Rune(40 * block_size, -1 * block_size, 32, 64)
+    rune9 = Rune(41 * block_size, 8 * block_size, 32, 64)
+    rune10 = Rune(44 * block_size, 13 * block_size + 15, 32, 64)
 
 
 
     
-    objects = [rune, rune2, rune3, rune4]
+    objects = [rune, rune2, rune3, rune4, rune5, rune6, rune7, rune8, rune9, rune10]
     
     
     canvas = pygame.surface.Surface((CANVAS_WIDTH, CANVAS_HEIGHT))
@@ -483,7 +506,7 @@ def main(window):
                 if event.key == pygame.K_UP and player.jump_count < 2:
                     player.jump(JUMP_VEL)
         player.loop(FPS)
-        rune.loop(), rune2.loop(), rune3.loop(), rune4.loop()
+        rune.loop(), rune2.loop(), rune3.loop(), rune4.loop(), rune5.loop(), rune6.loop(), rune7.loop(), rune8.loop(), rune9.loop(), rune10.loop()
         
         handle_movement(player, objects, tilemap)
 
