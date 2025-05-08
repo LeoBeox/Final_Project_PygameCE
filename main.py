@@ -582,13 +582,13 @@ def handle_enemy_collisions(player, enemies):
             # Checks if the player rect is coliding with enemy rect.
             player_bottom = player.rect.bottom
             enemy_top = enemy.rect.top
-            vertical_tolerance = 20 # Leniance
+            vertical_tolerance = 96 # Leniance
             
             if (abs(player_bottom - enemy_top) < vertical_tolerance and player.y_vel > -1):
                 # Enemy gets hit.
                 enemy.makeHit()
                 # Make the player bounce slightly
-                player.y_vel = -13
+                player.y_vel = -8
                 player.x_vel += 2
             else:
                 # Player gets hit.
