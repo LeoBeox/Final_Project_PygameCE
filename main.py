@@ -1,3 +1,5 @@
+# MAIN FILE 
+
 import os
 from os import listdir
 from os.path import isfile, join
@@ -7,13 +9,13 @@ import pygame
 from pygame.locals import *
 from tiles import *
 
-#Start Pygame
+# Start Pygame
 pygame.init()
 
-#Window Title
+# Window Title
 pygame.display.set_caption("Goblin Trot")
 
-#Main Macros
+# Main Macros
 BG_COLOR = (255, 255, 255)
 WIDTH, HEIGHT = 1000, 800
 CANVAS_WIDTH, CANVAS_HEIGHT = 4800, 1200
@@ -111,7 +113,7 @@ class Player(pygame.sprite.Sprite):
     SPRITES = load_sprite_sheets("MainCharacter", "GoblinBro", 32, 32, True)
     ANIMATION_DELAY = 5
     
-    
+    # Initializes player qualities
     def __init__(self, x, y, width, height, name=None):
         super().__init__()
         self.rect = pygame.Rect(x, y, width, height)
@@ -131,11 +133,12 @@ class Player(pygame.sprite.Sprite):
         self.health_display = Health(925, 20, self.max_health, self)
         self.health_display.fixed_pos = True
 
-
+    # Adjusts players rect position based on change in x and y
     def move(self, dx, dy):
         self.rect.x += dx
         self.rect.y += dy
 
+    # Handles the players hit state, damage, and death
     def makeHit(self):
         self.hit = True
         self.hit_count = 0
@@ -144,14 +147,17 @@ class Player(pygame.sprite.Sprite):
 
         if is_dead:
             self.is_alive = False
-            
+
+        # Pushed back player in proper direction    
         if self.direction == "left":
             self.x_vel = 30
         elif self.direction == "right":
             self.x_vel = -30
 
+        # Cannot move while hit
         self.can_move = False
 
+    # Left movement and sprite direction 
     def moveLeft(self, vel):
         if not self.can_move:
             return
@@ -161,6 +167,7 @@ class Player(pygame.sprite.Sprite):
             self.direction = "left"
             self.animation_count = 0
 
+    # Right movement and sprite direction
     def moveRight(self, vel):
         if not self.can_move:
             return
@@ -169,6 +176,7 @@ class Player(pygame.sprite.Sprite):
             self.direction = "right"
             self.animation_count = 0
 
+    # Handles Jumping
     def jump(self, jump_vel):
         if not self.can_move:
             return
@@ -183,32 +191,37 @@ class Player(pygame.sprite.Sprite):
         # Apply movement
         self.move(self.x_vel, self.y_vel)
 
-        # Gravity only if not on ground
+        # Gravity only if NOT on ground
         self.y_vel += min(1, (self.fall_count / FPS) * self.GRAVITY)
         self.fall_count += 1
 
+        # Checks for hit, cannot move if hit
         if self.hit:
             self.hit_count += 1
             if self.hit_count > FPS:
                 self.hit = False
                 self.can_move = True
 
+        # Updates display to show damage taken
         self.health_display.update()
 
         # print(self.y_vel) # Debug
         self.update_sprite()
 
-
+    # Resets jumping stats when on ground
     def landed(self):
         self.fall_count = 0
         self.y_vel = 0
         self.jump_count = 0
     
+    # Bounces off of ceiling collisions
     def hit_head(self):
         self.y_vel *= -1
 
+    # Updates sprite based on player state
     def update_sprite(self):
 
+        # Always starts idle
         sprite_sheet = "idle"
 
         if self.is_alive == False:
@@ -225,10 +238,11 @@ class Player(pygame.sprite.Sprite):
         else:
             sprite_sheet = "idle"
 
+        # Appropraite directional name for sprite
         sprite_sheet_name = sprite_sheet + "_" + self.direction
         sprites = self.SPRITES[sprite_sheet_name]
         sprite_index = (self.animation_count //
-                        self.ANIMATION_DELAY) % len(sprites)
+                        self.ANIMATION_DELAY) % len(sprites) # How quick the animation goes between frames
         
         # print(f"[DEBUG] Sheet: {sprite_sheet_name}, Frame: {sprite_index}/{len(sprites)}, Anim Count: {self.animation_count}, Y_Vel: {self.y_vel}")
         
@@ -238,11 +252,12 @@ class Player(pygame.sprite.Sprite):
 
         self.update()
 
-
+    # Update function that sets rect position and mask
     def update(self):
-        self.rect.topleft = (self.rect.x, self.rect.y)  # Set the position of the rect based on x and y coordinates
-        self.mask = pygame.mask.from_surface(self.sprite)  # Update the mask
+        self.rect.topleft = (self.rect.x, self.rect.y) 
+        self.mask = pygame.mask.from_surface(self.sprite)  
 
+    # Draws the player sprite on the canvas
     def draw(self, canvas, offset_x, offset_y):
         try:
             canvas.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
@@ -255,6 +270,7 @@ class Enemy(pygame.sprite.Sprite):
     
     ANIMATION_DELAY = 5
     
+    # Initializes enemy qualities
     def __init__(self, x, y, width, height, patrol_distance=200):
         super().__init__()
         self.name = "enemy"
@@ -280,9 +296,11 @@ class Enemy(pygame.sprite.Sprite):
         self.patrol_right_bound = x + patrol_distance
         self.patrol_left_bound = x
 
+    # Adjusts enemies rect position based on change in x
     def move(self, dx):
         self.rect.x += dx
 
+    # Handles the enemies hit state, damage, and death
     def makeHit(self):
         self.hit = True
         self.hit_count = 0
@@ -294,6 +312,7 @@ class Enemy(pygame.sprite.Sprite):
 
         self.can_move = False
 
+    # Left movement and sprite direction
     def moveLeft(self, vel):
         if not self.can_move:
             return
@@ -303,6 +322,7 @@ class Enemy(pygame.sprite.Sprite):
             self.direction = "left"
             self.animation_count = 0
 
+    # Right movement and sprite direction
     def moveRight(self, vel):  
         if not self.can_move:
             return
@@ -311,17 +331,19 @@ class Enemy(pygame.sprite.Sprite):
             self.direction = "right"
             self.animation_count = 0
 
+    # Handles back and forth patrol movement for enemies
     def patrol(self):
         # Patrol back and forth within bounds
         if self.rect.x >= self.patrol_right_bound:
             self.direction = "left"
-            self.x_vel = -abs(self.x_vel)  # Ensure negative velocity
+            self.x_vel = -abs(self.x_vel)  # Ensure moving left
             self.animation_count = 0
         elif self.rect.x <= self.patrol_left_bound:
             self.direction = "right"
-            self.x_vel = abs(self.x_vel)  # Ensure positive velocity
+            self.x_vel = abs(self.x_vel)  # Ensure moving right
             self.animation_count = 0
 
+    # Handles enemy loop, inlcuding aliveness, hitness, movement, and health display.
     def loop(self, FPS):
         # Handle patrol movement if alive and can move
         if self.is_alive and self.can_move:
@@ -339,7 +361,7 @@ class Enemy(pygame.sprite.Sprite):
         
         self.update_sprite()
 
-
+    # Updates sprite based on enemy state
     def update_sprite(self):
         sprite_sheet = "moving"  # Default animation
 
@@ -349,18 +371,21 @@ class Enemy(pygame.sprite.Sprite):
         elif self.hit:
             sprite_sheet = "hit"
 
+        # Adds proper directional name for sprite
         sprite_sheet_name = sprite_sheet + "_" + self.direction
         sprites = self.sprites[sprite_sheet_name]
-        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites) # Iteration through frames 
 
         self.sprite = sprites[sprite_index]
         self.animation_count += 1
         self.update()
 
+    # Updates enemy rect position and mask
     def update(self):
         self.rect = self.sprite.get_rect(topleft=(self.rect.x, self.rect.y))
         self.mask = pygame.mask.from_surface(self.sprite)
 
+    # Draws the enemy sprite on the canvas
     def draw(self, canvas, offset_x, offset_y):
         try:
             canvas.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
@@ -371,6 +396,7 @@ class Enemy(pygame.sprite.Sprite):
 # Class for game objects, such as blocks and runes (Kinda replaced with tile and tilemap, but still works for game end and rune)
 class Object(pygame.sprite.Sprite):
 
+    # Intialize object qualities
     def __init__(self, x, y, width, height, name=None):
         super().__init__()
         self.rect = pygame.Rect(x, y, width, height)
@@ -379,6 +405,7 @@ class Object(pygame.sprite.Sprite):
         self.height = height
         self.name = name
 
+    # Draws object by blitting to something
     def draw(self, win, offset_x, offset_y):
         # Debug: draw a green rectangle to see where the player should be
         # pygame.draw.rect(win, (0, 255, 0), self.rect)  # Green fill for visibility
@@ -394,6 +421,7 @@ class Object(pygame.sprite.Sprite):
 # Class for blocks in the game.
 class Block(Object):
     
+    # Initializes block qualities
     def __init__(self, x, y, size, startX, startY):
         super().__init__(x, y, size, size)  
         block = get_block(size, startX, startY)
@@ -408,6 +436,7 @@ class Rune(Object):
 
     ANIMATION_DELAY = 3
 
+    # Initializes rune qualities
     def __init__(self, x, y, width, height):
         super().__init__(x, y, width, height, "rune")
         self.rune = load_sprite_sheets("Traps", "Rune", width, height)
@@ -416,9 +445,11 @@ class Rune(Object):
         self.animation_count = 0
         self.animation_name = "rune"
 
+    # Handles the idle state of rune
     def idle(self):
         self.animation_name = "rune"
 
+    # Handles the animation of the rune
     def loop(self):
         
         sprites = self.rune[self.animation_name]
@@ -432,14 +463,19 @@ class Rune(Object):
         if self.animation_count // self.ANIMATION_DELAY > len(sprites):
             self.animation_count = 0
 
+    # Updates rune rect position and mask
     def update(self):
         self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
         self.mask = pygame.mask.from_surface(self.image)  # Update the mask
 
+# Class for Win Object in the game
 class WinObject(Object):
+    
+    # Initializes win object qualities
     def __init__(self, x, y, width, height):
         super().__init__(x, y, width, height, "win")
 
+        # Loads the win image (only need to draw to canvas at end, no other functions neccesary)
         self.image = pygame.image.load(join("assets", "Utility", "Win", "youwin!.png"))
 
 
@@ -450,6 +486,7 @@ def get_background(name):
 
     tiles = []
 
+    # Iterate through every tile size on the canvas and puts the image to each tile, making infinte background.
     for i in range(WIDTH // width + 1):
         for j in range(HEIGHT // height + 1):
             pos = [i * width, j * height]
@@ -461,29 +498,35 @@ def get_background(name):
 def draw(canvas, window, background, bg_image, player, objects, runes, enemies, tilemap, offset_x, offset_y):
     canvas.fill((0, 0, 0, 0))
 
+    # Blits every tile to the background
     for tile in background:
         canvas.blit(bg_image, tile)
 
+    # Draws the whole tilemap based off of the cvs stuff in tiles.py
     tilemap.draw_map(canvas, offset_x, offset_y)
 
 
-
+    # Draws all objects
     for obj in objects:
         if obj not in tilemap.get_tiles():
             obj.draw(canvas, offset_x, offset_y)
 
+    # Draws all runes
     for rune in runes:
         rune.draw(canvas, offset_x, offset_y)
 
+    # Draws all enemies
     for enemy in enemies:
         enemy.draw(canvas, offset_x, offset_y)
 
+    # Draws the player
     player.draw(canvas, offset_x, offset_y)
 
+    # Draws canvas (everything) to the window
     window.blit(canvas, (0, 0))
 
     
-
+    # Updates the display
     pygame.display.update()
 
 # Handles vertical collisions between the player, objects, and tiles.
@@ -492,23 +535,26 @@ def handle_vertical_collision(player, objects, tilemap, dy):
     player.rect.y += dy
     player.update()
 
-
+    # Check for collisions with objects while landing or jumping
     for obj in objects:
         if pygame.sprite.collide_mask(player, obj):
 
+            # Gives some leniance for the player to land on the object
             horizontal_overlap = min(player.rect.right - obj.rect.left,
                                     obj.rect.right - player.rect.left)
+            
             if horizontal_overlap > 10:
-
                 if dy > 0:  # Player is falling
                     player.rect.bottom = obj.rect.top
                     player.landed()  # Reset jump count and set player on ground
                 elif dy < 0:  # Player is jumping upwards
                     player.rect.top = obj.rect.bottom
                     player.hit_head()  # Handle hitting the ceiling
-                
+
+            # Adds collided object to list    
             collided_objects.append(obj)
 
+    # Checks same collisions for tiles in tile map because they are different
     for tile in tilemap.tiles:
         if pygame.sprite.collide_mask(player, tile):
 
@@ -532,6 +578,7 @@ def handle_enemy_collisions(player, enemies):
 
     for enemy in enemies:
         if enemy.is_alive and pygame.sprite.collide_mask(player, enemy):
+
             # Checks if the player rect is coliding with enemy rect.
             player_bottom = player.rect.bottom
             enemy_top = enemy.rect.top
@@ -546,30 +593,35 @@ def handle_enemy_collisions(player, enemies):
                 # Player gets hit.
                 player.makeHit()
 
-
+# Handles collision between the player and objects/tiles.
 def collide(player, objects, tilemap, dx):
     player.move(dx, 0)
     player.update()
     collided_object = None
+    
+    # Checks all objects
     for obj in objects:
         if pygame.sprite.collide_mask(player, obj):
             if player.rect.colliderect(obj.rect):
                 collided_object = obj
                 break
 
+    # Checks all tiles
     for tile in tilemap.tiles:
         if pygame.sprite.collide_mask(player, tile):
             if player.rect.colliderect(tile.rect):
                 collided_object = tile
                 break
 
-
+    # Fixes player x position if collision occured         
     player.move(-dx, 0)
     player.update()
     return collided_object
 
 
+# Handles control over player movement as well as factoring in collision with objects and tiles.
 def handle_movement(player, objects, tilemap):
+    # Pygame function that can tell if keys are pressed, returns as boolean
     keys = pygame.key.get_pressed()
 
     player.x_vel = 0
@@ -581,13 +633,13 @@ def handle_movement(player, objects, tilemap):
         if keys[pygame.K_LEFT] and not collide_left:
             player.moveLeft(PLAYER_VEL)
         if keys[pygame.K_RIGHT] and not collide_right:
-            player.moveRight(PLAYER_VEL) 
-    else:
+            player.moveRight(PLAYER_VEL)         
+    else: # Player cannot move when hit
             
         collide_left = collide(player, objects, tilemap, PLAYER_VEL * 2)
         collide_right = collide(player, objects, tilemap, PLAYER_VEL * 2)
         
-
+    # Checks vertical collisions and if hit from rune or enemy
     vertical_collide = handle_vertical_collision(player, objects, tilemap, player.y_vel)
     to_check = [collide_left, collide_right, *vertical_collide]
     for obj in to_check:
@@ -601,11 +653,17 @@ def handle_movement(player, objects, tilemap):
 
 # Main Function that handles everything that happens, including window, time, sprites, and logic.
 def main(window):
+    
+    # Handles time in pygame 
     clock = pygame.time.Clock()
+
+    # Background 
     background, bg_image = get_background("purblueBG.png")
 
+    # Block pixel size
     block_size = 96
 
+    # Player 
     player = Player(45, 1650, 50, 50)
     JUMP_VEL = -6
 
@@ -630,42 +688,59 @@ def main(window):
     # Win Object
     winObject = WinObject(47 * block_size, 15.35 * block_size, 32, 32)
     
+    # Lists of runes, enemies, and objects
     runes = [rune, rune2, rune3, rune4, rune5, rune6, rune7, rune8, rune9, rune10]
     enemies = [enemy1, enemy2, enemy3, enemy4]
     objects = [winObject]
     
+    # Entire canvas used for tilemap
     canvas = pygame.surface.Surface((CANVAS_WIDTH, CANVAS_HEIGHT))
 
+    # Offset to have camera follow player
     offset_x, offset_y = 0, 0
+
+    # Loads the tilemap from the csv file
     tilemap = TileMap('GoblinBroMap1.csv')
 
+    # Keeps camera boundaries in place to fit tilemap
     CAMERA_BOTTOM_LIMIT = 1100
     CAMERA_RIGHT_LIMIT = 3800
     CAMERA_LEFT_LIMIT = 0
 
     run = True
+
+    # Loop for while game is running
     while run:
+        
+        # Goes through time
         clock.tick(FPS)
 
+        # Handles certian events, such as quitting and jumping
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
                 break
             
-            if event.type == pygame.KEYDOWN:
+            if event.type == pygame.KEYDOWN: # Jumping is easier to handle in main loop than player class
                 if event.key == pygame.K_UP and player.jump_count < 2:
                     player.jump(JUMP_VEL)
+
+        # Runs through player loop            
         player.loop(FPS)
         
+        # Runs through each rune animation loop
         for rune in runes:
             rune.loop()
 
+        # Runs through each enemy loop
         for enemy in enemies:
             enemy.loop(FPS)
 
+        # Handles player movement and collisions
         handle_movement(player, objects, tilemap)
         handle_enemy_collisions(player, enemies)
         
+        # Draws everyting to the canvas!
         draw(canvas, window, background, bg_image, player, objects, runes, enemies, tilemap, offset_x, offset_y)
 
         #Offsets X-Camera to the player so that it is centered
@@ -685,13 +760,13 @@ def main(window):
         offset_y = min(target_offset_y, CAMERA_BOTTOM_LIMIT)
 
             
-
+    # Quits game when quit!
     pygame.quit()
     quit()       
    
     pass
 
-#Begins Main Function
+# Begins Main Function for simple always true check
 if __name__ == "__main__":
     main(window)
 
