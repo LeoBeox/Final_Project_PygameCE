@@ -582,16 +582,18 @@ def handle_enemy_collisions(player, enemies):
             # Checks if the player rect is coliding with enemy rect.
             player_bottom = player.rect.bottom
             enemy_top = enemy.rect.top
-            vertical_tolerance = 30 # Leniance
+            vertical_tolerance = 20 # Leniance
             
             if (abs(player_bottom - enemy_top) < vertical_tolerance and player.y_vel > -1):
                 # Enemy gets hit.
                 enemy.makeHit()
                 # Make the player bounce slightly
-                player.y_vel = -10
+                player.y_vel = -13
+                player.x_vel += 2
             else:
                 # Player gets hit.
                 player.makeHit()
+                
 
 # Handles collision between the player and objects/tiles.
 def collide(player, objects, tilemap, dx):
@@ -634,7 +636,7 @@ def handle_movement(player, objects, tilemap):
             player.moveLeft(PLAYER_VEL)
         if keys[pygame.K_RIGHT] and not collide_right:
             player.moveRight(PLAYER_VEL)         
-    else: # Player cannot move when hit
+    else: # Player cannot move when hit, but still has collisions
             
         collide_left = collide(player, objects, tilemap, PLAYER_VEL * 2)
         collide_right = collide(player, objects, tilemap, PLAYER_VEL * 2)
@@ -691,7 +693,8 @@ def main(window):
     # Lists of runes, enemies, and objects
     runes = [rune, rune2, rune3, rune4, rune5, rune6, rune7, rune8, rune9, rune10]
     enemies = [enemy1, enemy2, enemy3, enemy4]
-    objects = [winObject]
+    objects = [winObject] + runes
+
     
     # Entire canvas used for tilemap
     canvas = pygame.surface.Surface((CANVAS_WIDTH, CANVAS_HEIGHT))
