@@ -2,7 +2,8 @@ import pygame
 import os
 import csv
 
-
+# Tile class containing each individual tile on the map.
+# Handles loading, drawing, and blitting.
 class Tile(pygame.sprite.Sprite):
     tile_image = None
     
@@ -26,7 +27,7 @@ class Tile(pygame.sprite.Sprite):
     def draw(self, surface, offset_x, offset_y):
         surface.blit(self.image, (self.rect.x - offset_x, self.rect.y - offset_y))
 
-
+# Reusable class that handles loading from the csv map file and uses the Tile class to create the map.
 class TileMap():
     def __init__(self, file_name):
         self.tile_size = 96
@@ -45,7 +46,8 @@ class TileMap():
                 tile.draw(surface, offset_x, offset_y)
 
         return surface
-
+    
+    # Reads the csv file and stores the data in a list.
     def read_csv(self, file_name):
         tileMap_1 = []
         with open(os.path.join(file_name)) as data:
@@ -54,6 +56,7 @@ class TileMap():
                 tileMap_1.append(list(row))
         return tileMap_1
     
+    # Loads the tiles from the csv file and creates a Tile object for each tile.
     def load_tiles(self, file_name):
         tiles = []
         csv_map = self.read_csv(file_name)

@@ -27,6 +27,7 @@ window = pygame.display.set_mode((WIDTH, HEIGHT))
 def flip(sprites):
     return [pygame.transform.flip(sprite, True, False) for sprite in sprites]
 
+# Loads the sprite sheets from the given directory and returns a dictionary of sprites
 def load_sprite_sheets(dir1, dir2, width, height, direction=False):
     path = join("assets", dir1, dir2)
     images = [f for f in listdir(path) if isfile(join(path, f))]
@@ -43,7 +44,7 @@ def load_sprite_sheets(dir1, dir2, width, height, direction=False):
             surface.blit(sprite_sheet, (0, 0), rect)
             sprites.append(pygame.transform.scale2x(surface))
 
-
+        # Adds the sprites with the proper direction for easier calling.
         if direction:
             all_sprites[image.replace(".png", "") + "_right"] = sprites
             all_sprites[image.replace(".png", "") + "_left"] = flip(sprites)
@@ -52,6 +53,7 @@ def load_sprite_sheets(dir1, dir2, width, height, direction=False):
     
     return all_sprites
 
+# Gets the block from the terrain sprite sheet, returns a surface with the block image.
 def get_block(size, startX, startY):
     path = join("assets", "Terrain", "Terrain.png")
     image = pygame.image.load(path).convert_alpha()
@@ -60,6 +62,7 @@ def get_block(size, startX, startY):
     surface.blit(image, (0, 0), area=rect)
     return surface
 
+# Handles health display and damage for player and enemies. 
 class Health:
     def __init__(self, x, y, maxHealth, entity=None):
         self.rect = pygame.Rect(x, y, 32, 32)
@@ -70,18 +73,22 @@ class Health:
         self.frame = self.current_health
         self.entity = entity
         self.fixed_pos = True
-        
+        self.offset_x = 40   # For un-fixed positions v
+        self.offset_y = -50
+
+    # Handles damage and returns alive value as boolean  
     def take_damage(self, damage):
         self.current_health = max(0, self.current_health - damage)
         return self.current_health <= 0
     
+    # Updates the health display position based on the entity's position, except for when fixed_pos is True
     def update(self):
         if self.entity and not self.fixed_pos:
-            self.x = self.owner.rect.x + (self.owner.rect.width // 2) - 16
-            self.y = self.owner.rect.y + 40
+            self.rect.x = self.entity.rect.x + self.offset_x
+            self.rect.y = self.entity.rect.y + self.offset_y
 
 
-
+    # Draws the health display on the canvas and determines which frame to display based on current health
     def draw(self, canvas, offset_x=0, offset_y=0):
         
         frame_index = self.max_health - self.current_health
@@ -95,7 +102,8 @@ class Health:
             canvas.blit(sprite, (self.rect.x, self.rect.y))
         else:
             canvas.blit(sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
-        
+
+# Handles the player character, as well as health, movement, animation, and some collision detection.       
 class Player(pygame.sprite.Sprite):
 
     COLOR = (255, 0, 0)
@@ -137,13 +145,10 @@ class Player(pygame.sprite.Sprite):
         if is_dead:
             self.is_alive = False
             
-
         if self.direction == "left":
             self.x_vel = 30
         elif self.direction == "right":
             self.x_vel = -30
-
-        
 
         self.can_move = False
 
@@ -245,26 +250,129 @@ class Player(pygame.sprite.Sprite):
         except Exception as e:
             print("Error drawing sprite:", e)
 
+# Handles the enemey character, as well as health, movement, animation, and some collision detection.
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        super.__init__()
-        self.rect = pygame.Rect(x, y, 0, 0)
-        self.image = pygame.Surface((0, 0), pygame.SRCALPHA)
-        self.name = None
-        self.sprite = load_sprite_sheets("Enemies", "Evil_Wizard", 32, 32, True)
+    
+    ANIMATION_DELAY = 5
+    
+    def __init__(self, x, y, width, height, patrol_distance=200):
+        super().__init__()
+        self.name = "enemy"
+        self.rect = pygame.Rect(x, y, width, height)
+        self.x_vel = 2  # Default patrol speed
+        self.fall_count = 0
+        self.mask = None
         self.direction = "left"
         self.animation_count = 0
-        self.gravity_enabled = True
+        self.sprite = None
+        self.sprites = load_sprite_sheets("Enemies", "EvilWizard", 32, 32, True)
         self.hit = False
         self.hit_count = 0
         self.can_move = True
         self.is_alive = True
         self.max_health = 3
-        self.health_display = Health(925, 20, self.max_health, self)
+        self.health_display = Health(x, y-20, self.max_health, self)
         self.health_display.fixed_pos = False
-       
-        pass
+        
+        # Patrol variables
+        self.start_x = x
+        self.patrol_distance = patrol_distance
+        self.patrol_right_bound = x + patrol_distance
+        self.patrol_left_bound = x
 
+    def move(self, dx):
+        self.rect.x += dx
+
+    def makeHit(self):
+        self.hit = True
+        self.hit_count = 0
+
+        is_dead = self.health_display.take_damage(1)
+
+        if is_dead:
+            self.is_alive = False
+
+        self.can_move = False
+
+    def moveLeft(self, vel):
+        if not self.can_move:
+            return
+
+        self.x_vel = -vel
+        if self.direction != "left":
+            self.direction = "left"
+            self.animation_count = 0
+
+    def moveRight(self, vel):  
+        if not self.can_move:
+            return
+        self.x_vel = vel
+        if self.direction != "right":
+            self.direction = "right"
+            self.animation_count = 0
+
+    def patrol(self):
+        # Patrol back and forth within bounds
+        if self.rect.x >= self.patrol_right_bound:
+            self.direction = "left"
+            self.x_vel = -abs(self.x_vel)  # Ensure negative velocity
+            self.animation_count = 0
+        elif self.rect.x <= self.patrol_left_bound:
+            self.direction = "right"
+            self.x_vel = abs(self.x_vel)  # Ensure positive velocity
+            self.animation_count = 0
+
+    def loop(self, FPS):
+        # Handle patrol movement if alive and can move
+        if self.is_alive and self.can_move:
+            self.patrol()
+            self.move(self.x_vel)
+
+        # Reset hit state after delay
+        if self.hit:
+            self.hit_count += 1
+            if self.hit_count > FPS:
+                self.hit = False
+                self.can_move = True
+
+        # Update health display position to match enemy
+        self.health_display.rect.x = self.rect.x
+        self.health_display.rect.y = self.rect.y - 20
+
+        self.health_display.update()
+        
+        self.update_sprite()
+
+
+    def update_sprite(self):
+        sprite_sheet = "moving"  # Default animation
+
+        if not self.is_alive:
+            sprite_sheet = "dead"
+            self.can_move = False
+        elif self.hit:
+            sprite_sheet = "hit"
+
+        sprite_sheet_name = sprite_sheet + "_" + self.direction
+        sprites = self.sprites[sprite_sheet_name]
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+
+        self.sprite = sprites[sprite_index]
+        self.animation_count += 1
+        self.update()
+
+    def update(self):
+        self.rect = self.sprite.get_rect(topleft=(self.rect.x, self.rect.y))
+        self.mask = pygame.mask.from_surface(self.sprite)
+
+    def draw(self, canvas, offset_x, offset_y):
+        try:
+            canvas.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
+            self.health_display.draw(canvas, offset_x, offset_y)
+        except Exception as e:
+            print("Error drawing enemy sprite:", e)
+
+# Class for game objects, such as blocks and runes (Kinda replaced with tile and tilemap, but still works for game end and rune)
 class Object(pygame.sprite.Sprite):
 
     def __init__(self, x, y, width, height, name=None):
@@ -287,6 +395,7 @@ class Object(pygame.sprite.Sprite):
         # Debug:
         # pygame.draw.rect(win, (255, 0, 0), self.rect, 2)  # draw red outline
 
+# Class for blocks in the game.
 class Block(Object):
     
     def __init__(self, x, y, size, startX, startY):
@@ -298,6 +407,7 @@ class Block(Object):
             self.image.fill((0, 255, 0))  # bright green just in case loading fails
         self.mask = pygame.mask.from_surface(self.image)  
 
+# Class for Rune Traps in the game
 class Rune(Object):
     ANIMATION_DELAY = 3
 
@@ -344,7 +454,7 @@ def get_background(name):
     return tiles, image
 
 # Draws Everything onto the screen
-def draw(canvas, window, background, bg_image, player, objects, tilemap, offset_x, offset_y):
+def draw(canvas, window, background, bg_image, player, objects, enemies, tilemap, offset_x, offset_y):
     canvas.fill((0, 0, 0, 0))
 
     for tile in background:
@@ -357,6 +467,9 @@ def draw(canvas, window, background, bg_image, player, objects, tilemap, offset_
     for obj in objects:
         if obj not in tilemap.get_tiles():
             obj.draw(canvas, offset_x, offset_y)
+
+    for enemy in enemies:
+        enemy.draw(canvas, offset_x, offset_y)
 
     player.draw(canvas, offset_x, offset_y)
 
@@ -405,6 +518,25 @@ def handle_vertical_collision(player, objects, tilemap, dy):
             collided_objects.append(tile)
 
     return collided_objects
+
+# Handles the collisions between the player and the enemies.
+def handle_enemy_collisions(player, enemies):
+
+    for enemy in enemies:
+        if enemy.is_alive and pygame.sprite.collide_mask(player, enemy):
+            # Checks if the player rect is coliding with enemy rect.
+            player_bottom = player.rect.bottom
+            enemy_top = enemy.rect.top
+            vertical_tolerance = 10 # Leniance
+            
+            if (abs(player_bottom - enemy_top) < vertical_tolerance and player.y_vel > 0):
+                # Enemy gets hit.
+                enemy.makeHit()
+                # Make the player bounce slightly
+                player.y_vel = -5
+            else:
+                # Player gets hit.
+                player.makeHit()
 
 
 def collide(player, objects, tilemap, dx):
@@ -455,6 +587,8 @@ def handle_movement(player, objects, tilemap):
             break
         if obj and obj.name == "rune":
             player.makeHit()
+        elif obj and obj.name == "enemy":
+            player.makeHit()
 
 
 # Main Function that handles everything that happens, including window, time, sprites, and logic.
@@ -467,6 +601,7 @@ def main(window):
     player = Player(45, 1650, 50, 50)
     JUMP_VEL = -6
 
+    # Runes
     rune = Rune(3 * block_size + 15, 17 * block_size + 20, 32, 64)
     rune2 = Rune(500, HEIGHT - block_size - 300, 32, 64)
     rune3 = Rune(46 * block_size + 15, 10 * block_size + 30, 32, 64)
@@ -478,11 +613,13 @@ def main(window):
     rune9 = Rune(41 * block_size, 8 * block_size, 32, 64)
     rune10 = Rune(44 * block_size, 13 * block_size + 15, 32, 64)
 
+    # Enemies
+    enemy1 = Enemy(8 * block_size, 12.4 * block_size, 32, 32, 5.25 * block_size)
 
 
     
     objects = [rune, rune2, rune3, rune4, rune5, rune6, rune7, rune8, rune9, rune10]
-    
+    enemies = [enemy1]
     
     canvas = pygame.surface.Surface((CANVAS_WIDTH, CANVAS_HEIGHT))
 
@@ -507,11 +644,13 @@ def main(window):
                     player.jump(JUMP_VEL)
         player.loop(FPS)
         rune.loop(), rune2.loop(), rune3.loop(), rune4.loop(), rune5.loop(), rune6.loop(), rune7.loop(), rune8.loop(), rune9.loop(), rune10.loop()
-        
-        handle_movement(player, objects, tilemap)
+        enemy1.loop(FPS)
 
+
+        handle_movement(player, objects, tilemap)
+        handle_enemy_collisions(player, enemies)
         
-        draw(canvas, window, background, bg_image, player, objects, tilemap, offset_x, offset_y)
+        draw(canvas, window, background, bg_image, player, objects, enemies, tilemap, offset_x, offset_y)
 
         #Offsets X-Camera to the player so that it is centered
         target_offset_x = player.rect.x - WIDTH // 2 + player.rect.width // 2
