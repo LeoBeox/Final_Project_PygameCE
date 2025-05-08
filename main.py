@@ -335,10 +335,6 @@ class Enemy(pygame.sprite.Sprite):
                 self.hit = False
                 self.can_move = True
 
-        # Update health display position to match enemy
-        self.health_display.rect.x = self.rect.x
-        self.health_display.rect.y = self.rect.y - 20
-
         self.health_display.update()
         
         self.update_sprite()
@@ -527,13 +523,13 @@ def handle_enemy_collisions(player, enemies):
             # Checks if the player rect is coliding with enemy rect.
             player_bottom = player.rect.bottom
             enemy_top = enemy.rect.top
-            vertical_tolerance = 10 # Leniance
+            vertical_tolerance = 25 # Leniance
             
             if (abs(player_bottom - enemy_top) < vertical_tolerance and player.y_vel > 0):
                 # Enemy gets hit.
                 enemy.makeHit()
                 # Make the player bounce slightly
-                player.y_vel = -5
+                player.y_vel = -8
             else:
                 # Player gets hit.
                 player.makeHit()
@@ -607,7 +603,7 @@ def main(window):
     rune3 = Rune(46 * block_size + 15, 10 * block_size + 30, 32, 64)
     rune4 = Rune(45 * block_size + 15, 10 * block_size + 30, 32, 64)
     rune5 = Rune(24 * block_size, 8 * block_size, 32, 64)
-    rune6 = Rune(25 * block_size, 15 * block_size, 32, 64)
+    rune6 = Rune(25 * block_size, 15.25 * block_size, 32, 64)
     rune7 = Rune(30 * block_size, 5 * block_size, 32, 64)
     rune8 = Rune(40 * block_size, -1 * block_size, 32, 64)
     rune9 = Rune(41 * block_size, 8 * block_size, 32, 64)
@@ -615,11 +611,12 @@ def main(window):
 
     # Enemies
     enemy1 = Enemy(8 * block_size, 12.4 * block_size, 32, 32, 5.25 * block_size)
-
-
+    enemy2 = Enemy(28 * block_size, 8.4 * block_size, 32, 32, 6.25 * block_size)
+    enemy3 = Enemy(35 * block_size, 16.4 * block_size, 32, 32, 3.25 * block_size)
+    enemy4 = Enemy(38 * block_size, 12.4 * block_size, 32, 32, 4.25 * block_size)
     
     objects = [rune, rune2, rune3, rune4, rune5, rune6, rune7, rune8, rune9, rune10]
-    enemies = [enemy1]
+    enemies = [enemy1, enemy2, enemy3, enemy4]
     
     canvas = pygame.surface.Surface((CANVAS_WIDTH, CANVAS_HEIGHT))
 
@@ -643,9 +640,12 @@ def main(window):
                 if event.key == pygame.K_UP and player.jump_count < 2:
                     player.jump(JUMP_VEL)
         player.loop(FPS)
-        rune.loop(), rune2.loop(), rune3.loop(), rune4.loop(), rune5.loop(), rune6.loop(), rune7.loop(), rune8.loop(), rune9.loop(), rune10.loop()
-        enemy1.loop(FPS)
+        
+        for rune in objects:
+            rune.loop()
 
+        for enemy in enemies:
+            enemy.loop(FPS)
 
         handle_movement(player, objects, tilemap)
         handle_enemy_collisions(player, enemies)
