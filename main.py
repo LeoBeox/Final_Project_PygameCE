@@ -405,6 +405,7 @@ class Block(Object):
 
 # Class for Rune Traps in the game
 class Rune(Object):
+
     ANIMATION_DELAY = 3
 
     def __init__(self, x, y, width, height):
@@ -435,7 +436,14 @@ class Rune(Object):
         self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
         self.mask = pygame.mask.from_surface(self.image)  # Update the mask
 
+class WinObject(Object):
+    def __init__(self, x, y, width, height):
+        super().__init__(x, y, width, height, "win")
 
+        self.image = pygame.image.load(join("assets", "Utility", "Win", "youwin!.png"))
+
+
+# Makes the background from one tile repeated over the whole canvas
 def get_background(name):
     image = pygame.image.load(join("assets", "Background", name))
     _, _, width, height = image.get_rect()
@@ -450,7 +458,7 @@ def get_background(name):
     return tiles, image
 
 # Draws Everything onto the screen
-def draw(canvas, window, background, bg_image, player, objects, enemies, tilemap, offset_x, offset_y):
+def draw(canvas, window, background, bg_image, player, objects, runes, enemies, tilemap, offset_x, offset_y):
     canvas.fill((0, 0, 0, 0))
 
     for tile in background:
@@ -464,6 +472,9 @@ def draw(canvas, window, background, bg_image, player, objects, enemies, tilemap
         if obj not in tilemap.get_tiles():
             obj.draw(canvas, offset_x, offset_y)
 
+    for rune in runes:
+        rune.draw(canvas, offset_x, offset_y)
+
     for enemy in enemies:
         enemy.draw(canvas, offset_x, offset_y)
 
@@ -475,6 +486,7 @@ def draw(canvas, window, background, bg_image, player, objects, enemies, tilemap
 
     pygame.display.update()
 
+# Handles vertical collisions between the player, objects, and tiles.
 def handle_vertical_collision(player, objects, tilemap, dy):
     collided_objects = []
     player.rect.y += dy
@@ -523,13 +535,13 @@ def handle_enemy_collisions(player, enemies):
             # Checks if the player rect is coliding with enemy rect.
             player_bottom = player.rect.bottom
             enemy_top = enemy.rect.top
-            vertical_tolerance = 25 # Leniance
+            vertical_tolerance = 30 # Leniance
             
-            if (abs(player_bottom - enemy_top) < vertical_tolerance and player.y_vel > 0):
+            if (abs(player_bottom - enemy_top) < vertical_tolerance and player.y_vel > -1):
                 # Enemy gets hit.
                 enemy.makeHit()
                 # Make the player bounce slightly
-                player.y_vel = -8
+                player.y_vel = -10
             else:
                 # Player gets hit.
                 player.makeHit()
@@ -614,9 +626,13 @@ def main(window):
     enemy2 = Enemy(28 * block_size, 8.4 * block_size, 32, 32, 6.25 * block_size)
     enemy3 = Enemy(35 * block_size, 16.4 * block_size, 32, 32, 3.25 * block_size)
     enemy4 = Enemy(38 * block_size, 12.4 * block_size, 32, 32, 4.25 * block_size)
+
+    # Win Object
+    winObject = WinObject(47 * block_size, 15.35 * block_size, 32, 32)
     
-    objects = [rune, rune2, rune3, rune4, rune5, rune6, rune7, rune8, rune9, rune10]
+    runes = [rune, rune2, rune3, rune4, rune5, rune6, rune7, rune8, rune9, rune10]
     enemies = [enemy1, enemy2, enemy3, enemy4]
+    objects = [winObject]
     
     canvas = pygame.surface.Surface((CANVAS_WIDTH, CANVAS_HEIGHT))
 
@@ -641,7 +657,7 @@ def main(window):
                     player.jump(JUMP_VEL)
         player.loop(FPS)
         
-        for rune in objects:
+        for rune in runes:
             rune.loop()
 
         for enemy in enemies:
@@ -650,7 +666,7 @@ def main(window):
         handle_movement(player, objects, tilemap)
         handle_enemy_collisions(player, enemies)
         
-        draw(canvas, window, background, bg_image, player, objects, enemies, tilemap, offset_x, offset_y)
+        draw(canvas, window, background, bg_image, player, objects, runes, enemies, tilemap, offset_x, offset_y)
 
         #Offsets X-Camera to the player so that it is centered
         target_offset_x = player.rect.x - WIDTH // 2 + player.rect.width // 2
